@@ -1,0 +1,50 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: geotoken-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=sqlite:///./geotoken.db
+      - SECRET_KEY=geotoken-super-secret-production-grade-jwt-key-2026
+      - DEFAULT_GEOFENCE_RADIUS_METERS=500
+      - DEFAULT_TOKEN_VALIDITY_MINUTES=45
+      - CALLED_TOKEN_NO_SHOW_TIMEOUT_MINUTES=3
+      - TOKEN_EXPIRATION_CHECK_INTERVAL_SECONDS=30
+    volumes:
+      - backend-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - geotoken-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: geotoken-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - geotoken-net
+
+volumes:
+  backend-data:
+    driver: local
+
+networks:
+  geotoken-net:
+    driver: bridge
